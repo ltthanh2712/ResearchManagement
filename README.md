@@ -149,6 +149,7 @@ docker-compose up -d --build
 
 # 2. Init database for MSSQL Site A
 docker exec -it mssql_site_a bash
+
 /opt/mssql-tools18/bin/sqlcmd \
   -S localhost \
   -U sa \
@@ -158,7 +159,8 @@ docker exec -it mssql_site_a bash
 
 
 # 3. Init database for MSSQL Site B
-docker exec -it mssql_site_b bash
+docker exec -it mssql_site_b bash 
+
 /opt/mssql-tools18/bin/sqlcmd \
   -S localhost \
   -U sa \
@@ -169,12 +171,14 @@ docker exec -it mssql_site_b bash
 
 # 4. Init database for PostgreSQL Site C
 docker exec -it postgres_site_c bash
+
 psql -U postgres -d ResearchManagement \
   -f /docker-entrypoint-initdb.d/init.sql
 
 
 # 5. Init database for MSSQL Global
 docker exec -it mssql_global bash
+
 /opt/mssql-tools18/bin/sqlcmd \
   -S localhost \
   -U sa \

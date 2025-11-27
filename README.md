@@ -143,25 +143,59 @@ npm start
 
 ### Building for Production
 
-```bash
-# Frontend
-cd frontend && npm run build
+# 1. Build & start containers
+docker-compose up -d --build
 
-# Backend
-cd backend && npm run build
 
-# Docker build
-docker-compose build
-```
+# 2. Init database for MSSQL Site A
+docker exec -it mssql_site_a bash
 
+/opt/mssql-tools18/bin/sqlcmd \
+  -S localhost \
+  -U sa \
+  -P "YourStrongPassw0rd123" \
+  -i /usr/script/init.sql \
+  -C
+
+
+# 3. Init database for MSSQL Site B
+docker exec -it mssql_site_b bash 
+
+/opt/mssql-tools18/bin/sqlcmd \
+  -S localhost \
+  -U sa \
+  -P "YourStrongPassw0rd123" \
+  -i /usr/script/init.sql \
+  -C
+
+
+# 4. Init database for PostgreSQL Site C
+docker exec -it postgres_site_c bash
+
+psql -U postgres -d ResearchManagement \
+  -f /docker-entrypoint-initdb.d/init.sql
+
+
+# 5. Init database for MSSQL Global
+docker exec -it mssql_global bash
+
+/opt/mssql-tools18/bin/sqlcmd \
+  -S localhost \
+  -U sa \
+  -P "YourStrongPassw0rd123" \
+  -i /usr/script/init.sql \
+  -C \
+  -v SA_PASSWORD="YourStrongPassw0rd123"
+
+  
 ### Running Tests
 
 ```bash
 # Frontend tests
-cd frontend && npm test
+localhost:3000
 
 # Backend tests
-cd backend && npm test
+localhost:8080
 ```
 
 ## 📝 Business Rules

@@ -1,0 +1,108 @@
+services:
+  # ===========================
+  # SITE A - SQL SERVER
+  # ===========================
+  mssql_site_a:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql_site_a
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+    ports:
+      - "14331:1433"
+    networks:
+      - backend
+    volumes:
+      - ./docker/mssql_site_a:/usr/script
+
+  # ===========================
+  # SITE B - SQL SERVER
+  # ===========================
+  mssql_site_b:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql_site_b
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+    ports:
+      - "14332:1433"
+    networks:
+      - backend
+    volumes:
+      - ./docker/mssql_site_b:/usr/script
+
+  # ===========================
+  # SITE C - POSTGRES
+  # ===========================
+  postgres_site_c:
+    image: postgres:15
+    container_name: postgres_site_c
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ResearchManagement
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    volumes:
+      - ./docker/postgres_site_c:/docker-entrypoint-initdb.d
+
+  # ===========================
+  # GLOBAL - SQL SERVER
+  # ===========================
+  mssql_global:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql_global
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+    ports:
+      - "14334:1433"
+    networks:
+      - backend
+    depends_on:
+      - mssql_site_a
+      - mssql_site_b
+      - postgres_site_c
+    volumes:
+      - ./docker/mssql_global:/usr/script
+  # ===========================
+  # API NodeJS
+  # ===========================
+  api_node:
+    build: ./backend
+    container_name: api_node
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+    depends_on:
+      - mssql_site_a
+      - mssql_site_b
+      - mssql_global
+      - postgres_site_c
+    environment:
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+  # ===========================
+  # FRONTEND REACT
+  # ===========================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend_react
+    ports:
+      - "3000:80"
+    networks:
+      - backend
+    depends_on:
+      - api_node
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+
+networks:
+  backend:
+    driver: bridge

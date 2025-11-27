@@ -43,17 +43,31 @@ export class NhanVienService extends BaseService {
 
       // Kiểm tra site có khả dụng không
       if (!faultTolerance.isSiteAvailable(route.SiteName)) {
-        console.warn(`⚠️  Site ${route.SiteName} không khả dụng, bỏ qua`);
+        console.warn(`Site ${route.SiteName} không khả dụng, bỏ qua`);
         continue;
       }
 
       try {
-        const result = await this.executeQuery(
-          route.SiteName,
-          `SELECT MaNV, HoTen, MaNhom FROM NhanVien`
-        );
+        // Sử dụng direct connection để tránh parameter issues
+        const { conn, type } = await getConnection(route.SiteName);
+        let data: any[] = [];
 
-        const data = result.recordset || result.rows || [];
+        if (type === "mssql") {
+          const result = await conn
+            .request()
+            .query(`SELECT MaNV, HoTen, MaNhom FROM NhanVien`);
+          data = result.recordset || [];
+        } else {
+          // PostgreSQL
+          const result = await conn.query(
+            `SELECT "MaNV", "HoTen", "MaNhom" FROM "NhanVien"`
+          );
+          data = result.rows || [];
+        }
+
+        console.log(
+          `✅ Tìm thấy ${data.length} nhân viên trên ${route.SiteName} (${route.TenPhong})`
+        );
         results.push(...data);
       } catch (err) {
         console.error(`Không thể truy vấn site ${route.SiteName}:`, err);
@@ -72,15 +86,32 @@ export class NhanVienService extends BaseService {
   ): Promise<INhanVien | null> {
     console.log(`🔄 Sử dụng fallback mode - tìm ${maNV} trên tất cả sites`);
 
-    const results = await this.findDataAcrossSites<INhanVien>(
-      `SELECT MaNV, HoTen, MaNhom FROM NhanVien WHERE MaNV = ?`,
-      [maNV]
-    );
+    const sites: SiteName[] = ["siteA", "siteB", "siteC"];
 
-    for (const { site, data } of results) {
-      if (data.length > 0) {
-        console.log(`✅ Tìm thấy nhân viên ${maNV} trên ${site}`);
-        return data[0];
+    for (const site of sites) {
+      if (!faultTolerance.isSiteAvailable(site)) {
+        console.warn(`Site ${site} không khả dụng, bỏ qua`);
+        continue;
+      }
+
+      try {
+        let query = "";
+        if (site === "siteC") {
+          query = `SELECT "MaNV", "HoTen", "MaNhom" FROM "NhanVien" WHERE "MaNV" = $1`;
+        } else {
+          query = `SELECT MaNV, HoTen, MaNhom FROM NhanVien WHERE MaNV = ?`;
+        }
+
+        const result = await this.executeQuery(site, query, [maNV]);
+        const data = result.recordset || result.rows || [];
+
+        if (data.length > 0) {
+          console.log(`Tìm thấy nhân viên ${maNV} trên ${site}`);
+          return data[0];
+        }
+      } catch (error) {
+        console.error(`Không thể truy vấn ${site}:`, error);
+        continue;
       }
     }
 
@@ -90,17 +121,35 @@ export class NhanVienService extends BaseService {
   // ----------------------
   // Fallback: tìm kiếm nhân viên trên tất cả site khả dụng
   private async getAllNhanVienFallback(): Promise<INhanVien[]> {
-    console.log("🔄 Sử dụng fallback mode - tìm kiếm trên tất cả sites");
+    console.log("Sử dụng fallback mode - tìm kiếm trên tất cả sites");
 
-    const results = await this.findDataAcrossSites<INhanVien>(
-      `SELECT MaNV, HoTen, MaNhom FROM NhanVien`
-    );
-
+    // Gọi từng site một cách thủ công để xử lý PostgreSQL
+    const sites: SiteName[] = ["siteA", "siteB", "siteC"];
     let allData: INhanVien[] = [];
-    results.forEach(({ site, data }) => {
-      console.log(`✅ Tìm thấy ${data.length} nhân viên trên ${site}`);
-      allData.push(...data);
-    });
+
+    for (const site of sites) {
+      if (!faultTolerance.isSiteAvailable(site)) {
+        console.warn(`Site ${site} không khả dụng, bỏ qua`);
+        continue;
+      }
+
+      try {
+        let query = "";
+        if (site === "siteC") {
+          query = `SELECT "MaNV", "HoTen", "MaNhom" FROM "NhanVien"`;
+        } else {
+          query = `SELECT MaNV, HoTen, MaNhom FROM NhanVien`;
+        }
+
+        const result = await this.executeQuery(site, query);
+        const data = result.recordset || result.rows || [];
+        console.log(`Tìm thấy ${data.length} nhân viên trên ${site}`);
+        allData.push(...data);
+      } catch (error) {
+        console.error(`Không thể truy vấn site ${site}:`, error);
+        continue;
+      }
+    }
 
     return allData;
   }
@@ -140,11 +189,14 @@ export class NhanVienService extends BaseService {
     }
 
     try {
-      const result = await this.executeQuery(
-        siteName,
-        `SELECT MaNV, HoTen, MaNhom FROM NhanVien WHERE MaNV = ?`,
-        [maNV]
-      );
+      let query = "";
+      if (siteName === "siteC") {
+        query = `SELECT "MaNV", "HoTen", "MaNhom" FROM "NhanVien" WHERE "MaNV" = $1`;
+      } else {
+        query = `SELECT MaNV, HoTen, MaNhom FROM NhanVien WHERE MaNV = ?`;
+      }
+
+      const result = await this.executeQuery(siteName, query, [maNV]);
 
       const data = result.recordset || result.rows || [];
       return data[0] || null;
@@ -253,10 +305,18 @@ export class NhanVienService extends BaseService {
 
       const maNV = `${maNVPrefix}${nextId}`;
 
+      console.log(`🔄 Đang insert nhân viên ${maNV} vào ${siteName}`);
       await conn.query(
         `INSERT INTO "NhanVien" ("MaNV", "HoTen", "MaNhom") VALUES ($1, $2, $3)`,
         [maNV, hoTen, maNhom]
       );
+
+      // Verify insert thành công
+      const verifyResult = await conn.query(
+        `SELECT "MaNV", "HoTen", "MaNhom" FROM "NhanVien" WHERE "MaNV" = $1`,
+        [maNV]
+      );
+      console.log(`✅ Verify insert thành công:`, verifyResult.rows[0]);
 
       return { MaNV: maNV, HoTen: hoTen, MaNhom: maNhom };
     }

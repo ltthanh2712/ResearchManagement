@@ -60,18 +60,23 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_DA_Nhom')
     ON DELETE NO ACTION ON UPDATE NO ACTION;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_ThamGia_NV')
-    ALTER TABLE dbo.ThamGia 
-    ADD CONSTRAINT FK_ThamGia_NV FOREIGN KEY (MaNV) 
-    REFERENCES dbo.NhanVien(MaNV) 
-    ON DELETE NO ACTION ON UPDATE NO ACTION;
-GO
+-- Comment out FK constraint cho MaNV để cho phép cross-site participation
+-- IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_ThamGia_NV')
+--     ALTER TABLE dbo.ThamGia 
+--     ADD CONSTRAINT FK_ThamGia_NV FOREIGN KEY (MaNV) 
+--     REFERENCES dbo.NhanVien(MaNV) 
+--     ON DELETE NO ACTION ON UPDATE NO ACTION;
+-- GO
 
+-- Giữ lại FK constraint cho MaDA
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_ThamGia_DA')
+BEGIN
     ALTER TABLE dbo.ThamGia 
     ADD CONSTRAINT FK_ThamGia_DA FOREIGN KEY (MaDA) 
     REFERENCES dbo.DeAn(MaDA) 
-    ON DELETE NO ACTION ON UPDATE NO ACTION;
+    ON DELETE NO ACTION 
+    ON UPDATE NO ACTION;
+END
 GO
 
 -- ============================

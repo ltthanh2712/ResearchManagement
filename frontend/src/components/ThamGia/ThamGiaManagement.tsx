@@ -110,7 +110,7 @@ const ThamGiaManagement: React.FC = () => {
     return thamGiaList.map((tg) => {
       const nhanVien = nhanVienList.find((nv) => nv.MaNV === tg.MaNV);
       const deAn = deAnList.find((da) => da.MaDA === tg.MaDA);
-      const site = tg.MaNV.match(/^(P\d+)/)?.[1] || "";
+      const site = tg.MaDA.match(/^(P\d+)/)?.[1] || "";
 
       return {
         ...tg,
@@ -288,12 +288,12 @@ const ThamGiaManagement: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Client-side validation
+    // THAY ĐỔI: Cho phép cross-group participation
+    // Hiển thị thông báo thông tin thay vì ngăn cản
     if (roomCompatibility && !roomCompatibility.isCompatible) {
-      toast.error(
-        `Nhân viên phòng ${roomCompatibility.empRoom} không thể tham gia đề án phòng ${roomCompatibility.projRoom}`
+      console.log(
+        `Cross-group collaboration: Nhân viên phòng ${roomCompatibility.empRoom} tham gia đề án phòng ${roomCompatibility.projRoom}`
       );
-      return;
     }
 
     try {
@@ -628,12 +628,25 @@ const ThamGiaManagement: React.FC = () => {
           {/* Information notice */}
           {/* Room compatibility warning */}
           {roomCompatibility && !roomCompatibility.isCompatible ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-center gap-2">
-                <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
-                <span className="text-sm font-medium text-red-800">
-                  Cảnh báo: Nhân viên phòng {roomCompatibility.empRoom} không
-                  thể tham gia đề án phòng {roomCompatibility.projRoom}
+                <svg
+                  className="w-5 h-5 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="text-sm font-medium text-blue-800">
+                  Cross-group collaboration: Nhân viên phòng{" "}
+                  {roomCompatibility.empRoom}
+                  tham gia đề án phòng {roomCompatibility.projRoom}
                 </span>
               </div>
             </div>
@@ -776,17 +789,7 @@ const ThamGiaManagement: React.FC = () => {
             >
               Hủy
             </button>
-            <button
-              type="submit"
-              className={`btn-primary ${
-                roomCompatibility && !roomCompatibility.isCompatible
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-              disabled={Boolean(
-                roomCompatibility && !roomCompatibility.isCompatible
-              )}
-            >
+            <button type="submit" className="btn-primary" disabled={false}>
               {editMode ? "Cập nhật" : "Thêm mới"}
             </button>
           </div>

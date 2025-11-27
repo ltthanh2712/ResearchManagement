@@ -120,6 +120,98 @@ export class DeAnService {
     }
   }
   // ----------------------
+  // Form 1 - Đề án có nhân viên nhóm khác tham gia (Cross-site support)
+  async getDeAnWithOtherGroupEmployees(maNhom: string): Promise<IDeAn[]> {
+    const { conn: globalConn, type: globalType } = await getConnection(
+      "global"
+    );
+
+    // Lấy danh sách routing từ Global DB
+    let routingRows: {
+      TenPhong: string;
+      SiteName: string;
+      DatabaseType: "mssql" | "postgres";
+    }[] = [];
+
+    if (globalType === "mssql") {
+      const res = await globalConn
+        .request()
+        .query(`SELECT TenPhong, SiteName, DatabaseType FROM SiteRouting`);
+      routingRows = res.recordset;
+    } else {
+      const res = await globalConn.query(
+        `SELECT "TenPhong", "SiteName", "DatabaseType" FROM "SiteRouting"`
+      );
+      routingRows = res.rows.map((r: any) => ({
+        TenPhong: r.TenPhong,
+        SiteName: r.SiteName,
+        DatabaseType: r.DatabaseType.toLowerCase() as "mssql" | "postgres",
+      }));
+    }
+
+    let results: IDeAn[] = [];
+
+    // Duyệt qua tất cả các sites để tìm đề án có cross-group participation
+    for (const route of routingRows) {
+      if (!isValidSite(route.SiteName)) {
+        console.warn(`Site không hợp lệ: ${route.SiteName}, bỏ qua`);
+        continue;
+      }
+
+      try {
+        const { conn, type } = await getConnection(route.SiteName);
+
+        if (type === "mssql") {
+          // Tìm đề án thuộc maNhom có nhân viên từ nhóm khác tham gia
+          const res = await conn.request().input("MaNhom", maNhom).query(`
+            SELECT DISTINCT d.MaDA, d.TenDA, d.MaNhom
+            FROM DeAn d
+            JOIN ThamGia t ON d.MaDA = t.MaDA
+            WHERE d.MaNhom = @MaNhom 
+            AND EXISTS (
+              SELECT 1 FROM ThamGia t2 
+              WHERE t2.MaDA = d.MaDA 
+              AND t2.MaNV NOT LIKE @MaNhom + '%'
+            )
+          `);
+          results.push(...res.recordset);
+        } else {
+          // Tương tự cho PostgreSQL
+          const res = await conn.query(
+            `
+            SELECT DISTINCT d."MaDA", d."TenDA", d."MaNhom"
+            FROM "DeAn" d
+            JOIN "ThamGia" t ON d."MaDA" = t."MaDA"
+            WHERE d."MaNhom" = $1 
+            AND EXISTS (
+              SELECT 1 FROM "ThamGia" t2 
+              WHERE t2."MaDA" = d."MaDA" 
+              AND t2."MaNV" NOT LIKE $1 || '%'
+            )
+          `,
+            [maNhom]
+          );
+          results.push(...res.rows);
+        }
+      } catch (err) {
+        console.error(
+          `Không thể kết nối hoặc truy vấn site ${route.SiteName}:`,
+          err
+        );
+        continue;
+      }
+    }
+
+    // Loại bỏ duplicates dựa trên MaDA
+    const uniqueResults = results.filter(
+      (item, index, self) =>
+        index === self.findIndex((t) => t.MaDA === item.MaDA)
+    );
+
+    return uniqueResults;
+  }
+
+  // ----------------------
   // Lấy đề án chưa có nhân viên tham gia
   async getEmptyDeAn(): Promise<IDeAn[]> {
     const { conn: globalConn, type: globalType } = await getConnection(

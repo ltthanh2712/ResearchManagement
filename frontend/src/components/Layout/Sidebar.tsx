@@ -5,9 +5,13 @@ import {
   UserGroupIcon,
   UsersIcon,
   AcademicCapIcon,
+  DocumentTextIcon,
   LinkIcon,
   XMarkIcon,
   HeartIcon,
+  MagnifyingGlassIcon,
+  PencilIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarProps {
@@ -57,6 +61,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     },
   ];
 
+  const globalQueryNavigation = [
+    {
+      name: "Form 1: Đề án liên nhóm",
+      href: "/query/form1",
+      icon: MagnifyingGlassIcon,
+      description: "Tìm đề án có nhân viên nhóm khác tham gia",
+    },
+    {
+      name: "Form 2: Cập nhật phòng",
+      href: "/query/form2",
+      icon: PencilIcon,
+      description: "Cập nhật tên phòng và di chuyển mảnh",
+    },
+    {
+      name: "Form 3: Đề án trống",
+      href: "/query/form3",
+      icon: ExclamationTriangleIcon,
+      description: "Đề án chưa có nhân viên tham gia",
+    },
+  ];
+
   return (
     <>
       {/* Mobile overlay */}
@@ -70,8 +95,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       {/* Sidebar */}
       <div
         className={`
-        lg:flex lg:flex-col lg:h-full lg:w-72 lg:bg-white/95 lg:backdrop-blur-2xl lg:shadow-2xl lg:border-r lg:border-gray-200/50 lg:relative
-        fixed top-0 left-0 z-50 h-full w-72 bg-white/95 backdrop-blur-2xl shadow-2xl border-r border-gray-200/50 transform transition-all duration-300 ease-in-out lg:transform-none
+        lg:flex lg:flex-col lg:h-full lg:w-64 lg:bg-white/95 lg:backdrop-blur-2xl lg:shadow-2xl lg:border-r lg:border-gray-200/50 lg:relative
+        fixed top-0 left-0 z-50 h-full w-64 bg-white/95 backdrop-blur-2xl shadow-2xl border-r border-gray-200/50 transform transition-all duration-300 ease-in-out lg:transform-none
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
       >
@@ -85,11 +110,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
             </div>
             <div className="ml-4">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                Research Hub
+              <h1 className="text-lg font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                RMS
               </h1>
               <p className="text-xs text-gray-500 font-medium">
-                Management System v2.0
+                Research Management
               </p>
             </div>
           </div>
@@ -102,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="mt-8 px-6">
+        <nav className="flex-1 mt-8 px-6 overflow-y-auto pb-20">
           <div className="space-y-3">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -176,6 +201,81 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 </NavLink>
               );
             })}
+          </div>
+
+          {/* Separator */}
+          <div className="my-6 px-4">
+            <div className="border-t border-gray-200 dark:border-gray-600"></div>
+          </div>
+
+          {/* Global Query Section */}
+          <div className="mb-4">
+            <h3 className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+              📊 Truy vấn toàn cục
+            </h3>
+            <div className="space-y-2">
+              {globalQueryNavigation.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+
+                return (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={`
+                      group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform mx-2
+                      ${
+                        isActive
+                          ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/25 scale-105"
+                          : "text-gray-600 hover:bg-purple-50 hover:text-purple-800 hover:shadow-md hover:scale-105"
+                      }
+                    `}
+                  >
+                    <div
+                      className={`
+                        w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300
+                        ${
+                          isActive
+                            ? "bg-white/20"
+                            : "bg-purple-100 group-hover:bg-purple-200"
+                        }
+                      `}
+                    >
+                      <Icon
+                        className={`
+                          h-5 w-5 transition-all duration-300
+                          ${
+                            isActive
+                              ? "text-white"
+                              : "text-purple-600 group-hover:text-purple-700"
+                          }
+                        `}
+                      />
+                    </div>
+
+                    <div className="ml-3 flex-1">
+                      <div
+                        className={`font-medium text-xs ${
+                          isActive
+                            ? "text-white"
+                            : "text-gray-800 group-hover:text-purple-900"
+                        }`}
+                      >
+                        {item.name}
+                      </div>
+                      <div
+                        className={`text-xs mt-0.5 leading-tight ${
+                          isActive ? "text-white/80" : "text-gray-500"
+                        }`}
+                      >
+                        {item.description}
+                      </div>
+                    </div>
+                  </NavLink>
+                );
+              })}
+            </div>
           </div>
         </nav>
 

@@ -53,15 +53,6 @@ BEGIN
         ON UPDATE NO ACTION;
     END IF;
 
-    -- FK ThamGia -> NhanVien (an toàn)
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_thamgia_nv') THEN
-        ALTER TABLE "ThamGia"
-        ADD CONSTRAINT fk_thamgia_nv FOREIGN KEY ("MaNV")
-        REFERENCES "NhanVien"("MaNV")
-        ON DELETE NO ACTION
-        ON UPDATE NO ACTION;
-    END IF;
-
     -- FK ThamGia -> DeAn (an toàn)
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_thamgia_da') THEN
         ALTER TABLE "ThamGia"
@@ -72,6 +63,7 @@ BEGIN
     END IF;
 END
 $$;
+
 
 
 -- ============================

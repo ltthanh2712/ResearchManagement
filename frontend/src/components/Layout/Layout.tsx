@@ -13,7 +13,7 @@ const Layout: React.FC = () => {
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_70%)] pointer-events-none z-0"></div>
       {/* Sidebar - Fixed width */}
       <div className="hidden lg:flex lg:flex-shrink-0">
-        <div className="flex flex-col w-72">
+        <div className="flex flex-col w-64">
           <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
         </div>
       </div>

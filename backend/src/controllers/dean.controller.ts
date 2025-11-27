@@ -35,6 +35,23 @@ export class DeAnController {
     }
   }
 
+  // Form 1 - Đề án có nhân viên nhóm khác tham gia
+  static async getWithOtherGroupEmployees(req: Request, res: Response) {
+    try {
+      const { maNhom } = req.params;
+      if (!maNhom) {
+        return res.status(400).json({
+          success: false,
+          message: "Thiếu tham số MaNhom",
+        });
+      }
+      const data = await deAnService.getDeAnWithOtherGroupEmployees(maNhom);
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
   static async create(req: Request, res: Response) {
     try {
       const { MaNhom, TenDA, maNhom, tenDA } = req.body;

@@ -34,6 +34,9 @@ export class ThamGiaController {
   static async create(req: Request, res: Response) {
     try {
       const { MaNV, MaDA } = req.body;
+      console.log(
+        `DEBUG: Controller create called with MaNV: ${MaNV}, MaDA: ${MaDA}`
+      );
 
       if (!MaNV || !MaDA) {
         return res.status(400).json({
@@ -42,9 +45,12 @@ export class ThamGiaController {
         });
       }
 
+      console.log(`DEBUG: About to call addThamGia`);
       const success = await thamGiaService.addThamGia(MaNV, MaDA);
+      console.log(`DEBUG: addThamGia returned: ${success}`);
 
       if (success) {
+        console.log(`DEBUG: About to call getThamGia`);
         const data = await thamGiaService.getThamGia(MaNV, MaDA);
         res.status(201).json({
           success: true,
@@ -114,6 +120,112 @@ export class ThamGiaController {
         res.status(400).json({
           success: false,
           message: "Xóa quan hệ tham gia thất bại",
+        });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  // Move single ThamGia to new site (with NhanVien migration)
+  static async moveToSite(req: Request, res: Response) {
+    try {
+      const { maNV, maDA } = req.params;
+      const { targetSite } = req.body;
+
+      if (!targetSite) {
+        return res.status(400).json({
+          success: false,
+          message: "targetSite là bắt buộc",
+        });
+      }
+
+      const success = await thamGiaService.moveThamGiaToSite(
+        maNV,
+        maDA,
+        targetSite
+      );
+
+      if (success) {
+        res.json({
+          success: true,
+          message: `Chuyển quan hệ tham gia ${maNV}-${maDA} sang site ${targetSite} thành công`,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: "Chuyển site thất bại",
+        });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  // Move all ThamGia of a project to new site
+  static async moveProjectToSite(req: Request, res: Response) {
+    try {
+      const { maDA } = req.params;
+      const { targetSite } = req.body;
+
+      if (!targetSite) {
+        return res.status(400).json({
+          success: false,
+          message: "targetSite là bắt buộc",
+        });
+      }
+
+      const success = await thamGiaService.moveThamGiaOfProjectToSite(
+        maDA,
+        targetSite
+      );
+
+      if (success) {
+        res.json({
+          success: true,
+          message: `Chuyển tất cả quan hệ tham gia của đề án ${maDA} sang site ${targetSite} thành công`,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: "Chuyển site thất bại",
+        });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  // Update MaNV in ThamGia (direct update)
+  static async updateMaNV(req: Request, res: Response) {
+    try {
+      const { maNV: oldMaNV, maDA } = req.params;
+      const { newMaNV } = req.body;
+
+      if (!newMaNV) {
+        return res.status(400).json({
+          success: false,
+          message: "newMaNV là bắt buộc",
+        });
+      }
+
+      const success = await thamGiaService.updateMaNVInThamGia(
+        oldMaNV,
+        maDA,
+        newMaNV
+      );
+
+      if (success) {
+        const data = await thamGiaService.getThamGia(newMaNV, maDA);
+        res.json({
+          success: true,
+          message: `Cập nhật MaNV từ ${oldMaNV} thành ${newMaNV} cho đề án ${maDA} thành công`,
+          data,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: "Cập nhật MaNV thất bại",
         });
       }
     } catch (err: any) {

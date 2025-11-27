@@ -153,25 +153,8 @@ export class NhomNCService {
 
     // Lấy dữ liệu từ site cũ
     if (table === "ThamGia") {
-      // ThamGia không có cột MaNhom, cần join để lấy dữ liệu
-      if (oldType === "mssql") {
-        const res = await oldConn.request().input("MaNhom", oldMaNhom).query(`
-            SELECT t.* FROM ThamGia t 
-            WHERE t.MaNV IN (SELECT MaNV FROM NhanVien WHERE MaNhom=@MaNhom)
-            OR t.MaDA IN (SELECT MaDA FROM DeAn WHERE MaNhom=@MaNhom)
-          `);
-        rows = res.recordset;
-      } else {
-        const res = await oldConn.query(
-          `
-          SELECT t.* FROM "ThamGia" t 
-          WHERE t."MaNV" IN (SELECT "MaNV" FROM "NhanVien" WHERE "MaNhom"=$1)
-          OR t."MaDA" IN (SELECT "MaDA" FROM "DeAn" WHERE "MaNhom"=$1)
-        `,
-          [oldMaNhom]
-        );
-        rows = res.rows;
-      }
+      // ThamGia cần lấy từ tất cả sites vì có cross-site participation
+      rows = await this.getAllThamGiaRelatedToGroup(oldMaNhom);
     } else {
       // Các bảng khác có cột MaNhom
       if (oldType === "mssql") {
@@ -248,14 +231,37 @@ export class NhomNCService {
           this.idMappings.deAn[MaDAField] = newMaDA;
         }
       } else if (table === "ThamGia") {
-        // ThamGia: cập nhật MaNV và MaDA dựa trên mapping
+        // ThamGia: cập nhật MaNV và MaDA dựa trên mapping (bao gồm cross-group)
+        let hasMapping = false;
+
+        // Cập nhật MaNV nếu có mapping (nhân viên thuộc nhóm)
         if (row.MaNV && this.idMappings.nhanVien[row.MaNV]) {
           newRow.MaNV = this.idMappings.nhanVien[row.MaNV];
+          hasMapping = true;
+          console.log(`    👤 ThamGia MaNV: ${row.MaNV} → ${newRow.MaNV}`);
+        } else if (row.MaNV) {
+          // Giữ nguyên MaNV cross-group
+          newRow.MaNV = row.MaNV;
+          console.log(`    🔗 Giữ nguyên cross-group MaNV: ${row.MaNV}`);
         }
 
-        // ThamGia luôn dùng cột MaDA cho cả MSSQL và PostgreSQL
+        // Cập nhật MaDA nếu có mapping (đề án thuộc nhóm)
         if (row.MaDA && this.idMappings.deAn[row.MaDA]) {
           newRow.MaDA = this.idMappings.deAn[row.MaDA];
+          hasMapping = true;
+          console.log(`    📊 ThamGia MaDA: ${row.MaDA} → ${newRow.MaDA}`);
+        } else if (row.MaDA) {
+          // Giữ nguyên MaDA cross-group
+          newRow.MaDA = row.MaDA;
+          console.log(`    🔗 Giữ nguyên cross-group MaDA: ${row.MaDA}`);
+        }
+
+        // Chỉ skip nếu không có mapping nào (tức là hoàn toàn không liên quan đến nhóm)
+        if (!hasMapping) {
+          console.log(
+            `    ⏭️ Bỏ qua ThamGia không liên quan: MaNV=${row.MaNV}, MaDA=${row.MaDA}`
+          );
+          continue;
         }
 
         console.log(
@@ -721,5 +727,66 @@ export class NhomNCService {
     }
 
     console.log(`Đã xóa nhóm ${maNhom} tại site ${siteName}`);
+  }
+
+  // Helper method: Lấy tất cả ThamGia liên quan đến một nhóm từ tất cả sites
+  private async getAllThamGiaRelatedToGroup(maNhom: string): Promise<any[]> {
+    const { conn: globalConn, type: globalType } = await getConnection(
+      "global"
+    );
+
+    // Lấy danh sách tất cả sites
+    let routingRows: any[] = [];
+    if (globalType === "mssql") {
+      const res = await globalConn
+        .request()
+        .query(`SELECT SiteName FROM SiteRouting`);
+      routingRows = res.recordset;
+    } else {
+      const res = await globalConn.query(
+        `SELECT "SiteName" FROM "SiteRouting"`
+      );
+      routingRows = res.rows;
+    }
+
+    let allThamGiaRows: any[] = [];
+
+    // Query từng site để lấy ThamGia liên quan
+    for (const route of routingRows) {
+      if (!isValidSite(route.SiteName)) continue;
+
+      try {
+        const { conn, type } = await getConnection(route.SiteName);
+
+        if (type === "mssql") {
+          const res = await conn.request().input("MaNhom", maNhom).query(`
+            SELECT t.* FROM ThamGia t 
+            WHERE t.MaNV IN (SELECT MaNV FROM NhanVien WHERE MaNhom=@MaNhom)
+            OR t.MaDA IN (SELECT MaDA FROM DeAn WHERE MaNhom=@MaNhom)
+          `);
+          allThamGiaRows.push(...res.recordset);
+        } else {
+          const res = await conn.query(
+            `
+            SELECT t.* FROM "ThamGia" t 
+            WHERE t."MaNV" IN (SELECT "MaNV" FROM "NhanVien" WHERE "MaNhom"=$1)
+            OR t."MaDA" IN (SELECT "MaDA" FROM "DeAn" WHERE "MaNhom"=$1)
+          `,
+            [maNhom]
+          );
+          allThamGiaRows.push(...res.rows);
+        }
+      } catch (err) {
+        console.error(
+          `Không thể query ThamGia từ site ${route.SiteName}:`,
+          err
+        );
+      }
+    }
+
+    console.log(
+      `  📋 Tìm thấy ${allThamGiaRows.length} bản ghi ThamGia liên quan đến nhóm ${maNhom} từ tất cả sites`
+    );
+    return allThamGiaRows;
   }
 }

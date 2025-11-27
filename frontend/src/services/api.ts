@@ -70,6 +70,18 @@ export const deAnApi = {
     api
       .delete(`/dean/${maDA}`)
       .then((res: AxiosResponse) => res.data as ApiResponse<void>),
+
+  // Form 1 - Lấy đề án có nhân viên nhóm khác tham gia
+  getWithOtherGroupEmployees: (maNhom: string): Promise<ApiResponse<IDeAn[]>> =>
+    api
+      .get(`/dean/other-group/${maNhom}`)
+      .then((res: AxiosResponse) => res.data as ApiResponse<IDeAn[]>),
+
+  // Form 3 - Lấy đề án chưa có nhân viên tham gia
+  getEmpty: (): Promise<ApiResponse<IDeAn[]>> =>
+    api
+      .get("/dean/empty")
+      .then((res: AxiosResponse) => res.data as ApiResponse<IDeAn[]>),
 };
 
 // Nhan Vien APIs
